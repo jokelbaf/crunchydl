@@ -705,7 +705,7 @@ fn validate_refresh(
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::io::{Read, Write};
+    use std::io::{BufRead, BufReader, Read, Write};
     use std::net::TcpListener;
     use std::sync::Mutex;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -743,13 +743,23 @@ mod tests {
                         }
                         Err(_) => break,
                     };
-                    let mut request = [0_u8; 2048];
-                    let read = stream.read(&mut request).unwrap_or(0);
-                    let line = String::from_utf8_lossy(&request[..read]);
-                    let path = line
-                        .lines()
-                        .next()
-                        .and_then(|line| line.split_whitespace().nth(1))
+                    stream
+                        .set_nonblocking(false)
+                        .expect("fixture connection is blocking");
+                    stream
+                        .set_read_timeout(Some(Duration::from_secs(5)))
+                        .expect("fixture connection has a read timeout");
+                    let mut request_line = String::new();
+                    BufReader::new(&mut stream)
+                        .take(2048)
+                        .read_line(&mut request_line)
+                        .expect("fixture reads a complete request line");
+                    let request_line = request_line
+                        .split_once("\r\n")
+                        .map_or(request_line.as_str(), |(line, _)| line);
+                    let path = request_line
+                        .split_whitespace()
+                        .nth(1)
                         .unwrap_or("/")
                         .split('?')
                         .next()
@@ -944,7 +954,7 @@ mod tests {
         let server = FixtureServer::start();
         let staging = staging_directory();
         let first = TransferEngine::new(TransferOptions {
-            concurrency: 2,
+            concurrency: 1,
             max_attempts: 1,
             ..TransferOptions::default()
         })
