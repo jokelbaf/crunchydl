@@ -160,6 +160,29 @@ pub(crate) fn ellipsize(value: &str, max_chars: usize) -> String {
     format!("{}…", value.chars().take(keep).collect::<String>())
 }
 
+pub(crate) fn ellipsize_middle(value: &str, max_chars: usize) -> String {
+    let count = value.chars().count();
+    if count <= max_chars {
+        return value.to_string();
+    }
+    if max_chars <= 1 {
+        return "…".chars().take(max_chars).collect();
+    }
+    let remaining = max_chars - 1;
+    let start = remaining.div_ceil(2);
+    let end = remaining - start;
+    let prefix = value.chars().take(start).collect::<String>();
+    let suffix = value
+        .chars()
+        .rev()
+        .take(end)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+    format!("{prefix}…{suffix}")
+}
+
 /// Hide signed request URLs retained by queue documents written by older
 /// versions. New transfer errors are already redacted at their source.
 pub(crate) fn safe_failure(value: &str) -> String {
@@ -378,7 +401,7 @@ pub(crate) fn queue_state_style(state: QueueState, enabled: bool) -> String {
         QueueState::Completed => ("✓ completed", "32"),
         QueueState::Failed => ("× failed", "31"),
     };
-    paint(&format!("{icon:<15}"), code, enabled)
+    paint(icon, code, enabled)
 }
 
 #[cfg(test)]
@@ -390,6 +413,7 @@ mod tests {
         assert_eq!(yes_no(true), "yes");
         assert_eq!(human_bytes(1_572_864), "1.5 MiB");
         assert_eq!(ellipsize("abcdefgh", 5), "abcd…");
+        assert_eq!(ellipsize_middle("abcdefgh", 6), "abc…gh");
         assert_eq!(locale_name_from_code("es-419"), "Español (América Latina)");
         assert_eq!(locale_label_from_code("ja-JP"), "Japanese [ja-JP]");
         assert_eq!(locale_label_from_code("x-custom"), "x-custom");

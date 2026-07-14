@@ -1,6 +1,6 @@
 //! Command-line parsing and headless command dispatch.
 
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -12,11 +12,11 @@ use crate::config::{Config, DrmBackend};
 use crate::error::{Error, Result};
 use crate::paths::AppPaths;
 use crate::presentation::{
-    CliProgress, account_summary, catalog_rating_label, ellipsize, kind_label,
-    locale_label_from_code, print_account, print_success, print_warning, queue_state_style,
-    safe_failure, selection_label, yes_no,
+    CliProgress, account_summary, catalog_rating_label, ellipsize, ellipsize_middle, kind_label,
+    locale_name, paint, print_account, print_success, print_warning, queue_state_style,
+    safe_failure, selection_label,
 };
-use crate::queue::{Queue, QueueFormat, QueueItem, QueueSelection};
+use crate::queue::{Queue, QueueFormat, QueueItem, QueueSelection, QueueState};
 
 /// Download Crunchyroll media from a terminal.
 #[derive(Debug, Parser)]
@@ -264,22 +264,31 @@ async fn search(paths: &AppPaths, arguments: SearchArguments) -> Result<()> {
     } else if items.is_empty() {
         print_warning("No catalog results found.");
     } else {
-        println!(
-            "{:<14} {:<12} {:<9} {:<18} TITLE",
-            "TYPE", "ID", "PREMIUM", "RATING"
-        );
-        println!("{}", "─".repeat(96));
-        for item in items {
-            println!(
-                "{:<14} {:<12} {:<9} {:<18} {}",
-                kind_label(item.kind),
-                item.id,
-                yes_no(item.premium_only),
-                catalog_rating_label(item.rating.as_ref()),
-                item.title
-            );
+        let colors = io::stdout().is_terminal();
+        print_list_heading("Search results", items.len(), colors);
+        for (index, item) in items.iter().enumerate() {
+            let mut facts = vec![
+                kind_label(item.kind).to_string(),
+                if item.premium_only { "Premium" } else { "Free" }.to_string(),
+            ];
+            if item.rating.is_some() {
+                facts.push(catalog_rating_label(item.rating.as_ref()));
+            }
+            if let Some(year) = item.release_year {
+                facts.push(year.to_string());
+            }
+            print_catalog_item(&(index + 1).to_string(), item, facts, colors);
         }
-        println!("\nBrowse into a series: crunchydl browse series <SERIES_ID>");
+        print_actions(
+            &[
+                ("Browse", "crunchydl browse <series|movie-listing> <ID>"),
+                (
+                    "Download",
+                    "crunchydl download <episode|movie|music-video> <ID>",
+                ),
+            ],
+            colors,
+        );
     }
     Ok(())
 }
@@ -306,78 +315,134 @@ async fn browse(paths: &AppPaths, arguments: BrowseArguments) -> Result<()> {
 }
 
 fn print_seasons(items: &[crunchydl::CatalogItem]) {
-    println!("{:<8} {:<10} {:<12} TITLE", "SEASON", "EPISODES", "ID");
-    println!("{}", "─".repeat(96));
+    let colors = io::stdout().is_terminal();
+    print_list_heading("Seasons", items.len(), colors);
     for item in items {
-        println!(
-            "{:<8} {:<10} {:<12} {}",
-            item.season_number
-                .map_or_else(|| "-".to_string(), |number| number.to_string()),
-            item.episode_count
-                .map_or_else(|| "-".to_string(), |count| count.to_string()),
-            item.id,
-            item.title
-        );
-        print_catalog_languages(item);
+        let label = item
+            .season_number
+            .map_or_else(|| "Season".to_string(), |number| format!("S{number}"));
+        let facts = item
+            .episode_count
+            .map(|count| plural(count, "episode", "episodes"))
+            .into_iter()
+            .collect();
+        print_catalog_item(&label, item, facts, colors);
     }
-    println!("\nView episodes: crunchydl browse season <SEASON_ID>");
-    println!("Download a season: crunchydl download season <SEASON_ID>");
+    print_actions(
+        &[
+            ("View episodes", "crunchydl browse season <SEASON_ID>"),
+            ("Download", "crunchydl download season <SEASON_ID>"),
+        ],
+        colors,
+    );
 }
 
 fn print_episodes(items: &[crunchydl::CatalogItem]) {
-    println!(
-        "{:<10} {:<10} {:<9} {:<12} TITLE",
-        "EPISODE", "DURATION", "PREMIUM", "ID"
-    );
-    println!("{}", "─".repeat(96));
+    let colors = io::stdout().is_terminal();
+    print_list_heading("Episodes", items.len(), colors);
     for item in items {
-        println!(
-            "{:<10} {:<10} {:<9} {:<12} {}",
-            item.episode_number.as_deref().unwrap_or("-"),
+        let label = item
+            .episode_number
+            .as_deref()
+            .map_or_else(|| "Episode".to_string(), |number| format!("E{number}"));
+        let facts = vec![
             duration_label(item.duration_millis),
-            yes_no(item.premium_only),
-            item.id,
-            item.title
-        );
-        print_catalog_languages(item);
+            if item.premium_only { "Premium" } else { "Free" }.to_string(),
+        ];
+        print_catalog_item(&label, item, facts, colors);
     }
-    println!("\nDownload an episode: crunchydl download episode <EPISODE_ID>");
+    print_actions(
+        &[("Download", "crunchydl download episode <EPISODE_ID>")],
+        colors,
+    );
 }
 
 fn print_movies(items: &[crunchydl::CatalogItem]) {
-    println!("{:<10} {:<9} {:<12} TITLE", "DURATION", "PREMIUM", "ID");
-    println!("{}", "─".repeat(96));
-    for item in items {
-        println!(
-            "{:<10} {:<9} {:<12} {}",
+    let colors = io::stdout().is_terminal();
+    print_list_heading("Movies", items.len(), colors);
+    for (index, item) in items.iter().enumerate() {
+        let facts = vec![
             duration_label(item.duration_millis),
-            yes_no(item.premium_only),
-            item.id,
-            item.title
-        );
-        print_catalog_languages(item);
+            if item.premium_only { "Premium" } else { "Free" }.to_string(),
+        ];
+        print_catalog_item(&(index + 1).to_string(), item, facts, colors);
     }
-    println!("\nDownload a movie: crunchydl download movie <MOVIE_ID>");
+    print_actions(
+        &[("Download", "crunchydl download movie <MOVIE_ID>")],
+        colors,
+    );
 }
 
-fn print_catalog_languages(item: &crunchydl::CatalogItem) {
-    let audio = locale_list(&item.audio_locales);
-    let subtitles = locale_list(&item.subtitle_locales);
-    if audio != "not listed" || subtitles != "not listed" {
-        println!("  └─ Audio: {audio} • Subtitles: {subtitles}");
+fn print_list_heading(label: &str, count: usize, colors: bool) {
+    println!(
+        "{}  {}",
+        paint(label, "1;36", colors),
+        paint(&format!("· {count}"), "2", colors)
+    );
+    let rule_width = terminal_width().saturating_sub(1).min(72);
+    println!("{}", paint(&"─".repeat(rule_width), "2", colors));
+}
+
+fn print_catalog_item(
+    label: &str,
+    item: &crunchydl::CatalogItem,
+    facts: Vec<String>,
+    colors: bool,
+) {
+    let title_width = terminal_width()
+        .saturating_sub(label.chars().count() + 6)
+        .max(16);
+    println!(
+        "  {}  {}",
+        paint(label, "1;35", colors),
+        paint(&ellipsize(&item.title, title_width), "1", colors)
+    );
+
+    let mut identity = vec![item.id.clone()];
+    identity.extend(facts.into_iter().filter(|fact| fact != "-"));
+    println!("     {}", paint(&identity.join("  ·  "), "2", colors));
+
+    if let Some(languages) = catalog_language_summary(item) {
+        println!("     {}", paint(&languages, "36", colors));
+    }
+    println!();
+}
+
+fn print_actions(actions: &[(&str, &str)], colors: bool) {
+    println!("{}", paint("Actions", "1;36", colors));
+    for (label, command) in actions {
+        println!("  {:<14} {}", label, paint(command, "1", colors));
     }
 }
 
-fn locale_list(locales: &[Locale]) -> String {
-    if locales.is_empty() {
-        return "not listed".to_string();
+fn catalog_language_summary(item: &crunchydl::CatalogItem) -> Option<String> {
+    let mut facts = Vec::new();
+    match item.audio_locales.as_slice() {
+        [] => {}
+        [locale] => facts.push(format!("{} audio", locale_name(locale))),
+        locales => facts.push(plural(locales.len(), "audio language", "audio languages")),
     }
-    locales
-        .iter()
-        .map(ToString::to_string)
-        .map(|locale| locale_label_from_code(&locale))
-        .collect::<Vec<_>>()
-        .join(", ")
+    if !item.subtitle_locales.is_empty() {
+        facts.push(plural(
+            item.subtitle_locales.len(),
+            "subtitle language",
+            "subtitle languages",
+        ));
+    }
+    (!facts.is_empty()).then(|| facts.join("  ·  "))
+}
+
+fn plural(count: impl std::fmt::Display, singular: &str, plural: &str) -> String {
+    let count = count.to_string();
+    let label = if count == "1" { singular } else { plural };
+    format!("{count} {label}")
+}
+
+fn terminal_width() -> usize {
+    crossterm::terminal::size()
+        .map(|(width, _)| usize::from(width))
+        .unwrap_or(80)
+        .clamp(40, 120)
 }
 
 fn duration_label(duration_millis: Option<u64>) -> String {
@@ -445,31 +510,22 @@ async fn queue(paths: &AppPaths, arguments: QueueArguments) -> Result<()> {
             let queue = Queue::load(&paths.queue)?;
             if queue.items().is_empty() {
                 print_warning("The download queue is empty.");
+                return Ok(());
             }
-            let colors = std::io::IsTerminal::is_terminal(&std::io::stdout());
-            println!(
-                "{:<15} {:<12} {:<12} SELECTION",
-                "STATUS", "TYPE", "MEDIA ID"
-            );
-            println!("{}", "─".repeat(92));
+            let colors = io::stdout().is_terminal();
+            print_list_heading("Download queue", queue.items().len(), colors);
+            print_queue_summary(queue.items(), colors);
             for item in queue.items() {
-                println!(
-                    "{} {:<12} {:<12} {}",
-                    queue_state_style(item.state, colors),
-                    crate::presentation::target_kind_label(&item.target),
-                    item.target.id(),
-                    selection_label(item)
-                );
-                if let Some(title) = &item.title {
-                    println!("  ├─ {title}");
-                }
-                println!("  ├─ Job ID: {}", item.id);
-                if let Some(error) = &item.failure {
-                    println!("  └─ {}", ellipsize(&safe_failure(error), 110));
-                } else if let Some(output) = &item.output {
-                    println!("  └─ {}", ellipsize(&output.display().to_string(), 110));
-                }
+                print_queue_item(item, colors);
             }
+            print_actions(
+                &[
+                    ("Run pending", "crunchydl queue run"),
+                    ("Retry", "crunchydl queue retry [JOB_ID]"),
+                    ("Remove", "crunchydl queue remove <JOB_ID>"),
+                ],
+                colors,
+            );
             Ok(())
         }
         QueueCommand::Retry { id } => {
@@ -504,6 +560,74 @@ async fn queue(paths: &AppPaths, arguments: QueueArguments) -> Result<()> {
             Ok(())
         }
     }
+}
+
+fn print_queue_summary(items: &[QueueItem], colors: bool) {
+    let states = [
+        (QueueState::Running, "downloading"),
+        (QueueState::Pending, "pending"),
+        (QueueState::Failed, "failed"),
+        (QueueState::Completed, "completed"),
+    ];
+    let summary = states
+        .into_iter()
+        .filter_map(|(state, label)| {
+            let count = items.iter().filter(|item| item.state == state).count();
+            (count > 0).then(|| format!("{count} {label}"))
+        })
+        .collect::<Vec<_>>()
+        .join("  ·  ");
+    println!("  {}\n", paint(&summary, "2", colors));
+}
+
+fn print_queue_item(item: &QueueItem, colors: bool) {
+    let kind = crate::presentation::target_kind_label(&item.target);
+    let fallback_title = format!("{kind} {}", item.target.id());
+    let title = item.title.as_deref().unwrap_or(&fallback_title);
+    let status_width = match item.state {
+        QueueState::Pending => 9,
+        QueueState::Running => 13,
+        QueueState::Completed => 11,
+        QueueState::Failed => 8,
+    };
+    let title_width = terminal_width().saturating_sub(status_width + 5).max(16);
+    println!(
+        "  {}  {}",
+        queue_state_style(item.state, colors),
+        paint(&ellipsize(title, title_width), "1", colors)
+    );
+    println!(
+        "     {}",
+        paint(&format!("{kind}  ·  {}", item.target.id()), "2", colors)
+    );
+    println!("     {}", paint(&selection_label(item), "36", colors));
+    println!("     {}", paint(&format!("Job  {}", item.id), "2", colors));
+
+    let detail_width = terminal_width().saturating_sub(13).max(20);
+    if let Some(error) = &item.failure {
+        let failure = ellipsize(&safe_failure(error), detail_width);
+        println!("     {}  {}", paint("Error", "1;31", colors), failure);
+    } else if let Some(output) = &item.output {
+        let output = ellipsize_middle(&compact_path(output), detail_width);
+        println!("     {}  {}", paint("Output", "1;32", colors), output);
+    }
+    println!();
+}
+
+fn compact_path(path: &std::path::Path) -> String {
+    directories::UserDirs::new()
+        .and_then(|directories| {
+            path.strip_prefix(directories.home_dir())
+                .ok()
+                .map(|relative| {
+                    if relative.as_os_str().is_empty() {
+                        "~".to_string()
+                    } else {
+                        format!("~/{}", relative.display())
+                    }
+                })
+        })
+        .unwrap_or_else(|| path.display().to_string())
 }
 
 async fn expand_targets(
@@ -819,47 +943,87 @@ fn config(paths: &AppPaths, arguments: ConfigArguments) -> Result<()> {
             Ok(())
         }
         Some(ConfigCommand::Paths) => {
-            println!("{:<13} PATH", "DATA");
-            println!("{}", "─".repeat(72));
-            println!("{:<13} {}", "Config", paths.config.display());
-            println!("{:<13} {}", "Session", paths.session.display());
-            println!("{:<13} {}", "Archive", paths.archive.display());
-            println!("{:<13} {}", "Queue", paths.queue.display());
-            println!("{:<13} {}", "Thumbnails", paths.thumbnail_cache.display());
+            let colors = io::stdout().is_terminal();
+            print_page_heading("Application paths", colors);
+            print_path_setting("Config", &paths.config, colors);
+            print_path_setting("Session", &paths.session, colors);
+            print_path_setting("Archive", &paths.archive, colors);
+            print_path_setting("Queue", &paths.queue, colors);
+            print_path_setting("Thumbnails", &paths.thumbnail_cache, colors);
             Ok(())
         }
         None => {
             let config = Config::load(paths)?;
-            println!("crunchydl configuration");
-            println!("{}", "─".repeat(72));
-            println!("{:<18} {}", "Output directory", config.output_dir.display());
-            println!("{:<18} {}", "Filename", config.filename);
-            println!(
-                "{:<18} {}",
+            let colors = io::stdout().is_terminal();
+            print_page_heading("Configuration", colors);
+
+            print_settings_group("Output", colors);
+            print_setting("Directory", &compact_path(&config.output_dir), "36", colors);
+            print_setting(
                 "Folder layout",
-                config.output_layout.as_deref().unwrap_or("<disabled>")
+                config.output_layout.as_deref().unwrap_or("Disabled"),
+                "36",
+                colors,
             );
-            println!("{:<18} {}", "DRM backend", config.drm_backend);
-            println!(
-                "{:<18} {}",
-                "DRM device",
-                config
-                    .drm_device
-                    .as_deref()
-                    .map_or_else(|| "<unset>".to_string(), |path| path.display().to_string())
-            );
-            println!(
-                "{:<18} {}",
+            print_setting("Filename", &config.filename, "36", colors);
+
+            println!();
+            print_settings_group("DRM", colors);
+            print_setting("Backend", &config.drm_backend.to_string(), "36", colors);
+            if let Some(device) = config.drm_device.as_deref() {
+                print_setting("Device", &compact_path(device), "36", colors);
+            } else {
+                print_setting("Device", "Not configured", "33", colors);
+            }
+            print_setting(
                 "License endpoint",
                 if config.license_endpoint.is_some() {
-                    "<custom override>"
+                    "Custom override"
                 } else {
-                    "<automatic>"
-                }
+                    "Automatic"
+                },
+                "36",
+                colors,
+            );
+
+            println!();
+            print_actions(
+                &[
+                    ("Edit", "crunchydl config set --help"),
+                    ("Show paths", "crunchydl config paths"),
+                ],
+                colors,
             );
             Ok(())
         }
     }
+}
+
+fn print_page_heading(label: &str, colors: bool) {
+    println!("{}", paint(label, "1;36", colors));
+    let rule_width = terminal_width().saturating_sub(1).min(72);
+    println!("{}\n", paint(&"─".repeat(rule_width), "2", colors));
+}
+
+fn print_settings_group(label: &str, colors: bool) {
+    println!("{}", paint(label, "1;35", colors));
+}
+
+fn print_setting(label: &str, value: &str, value_color: &str, colors: bool) {
+    let available = terminal_width().saturating_sub(5).max(20);
+    let value = ellipsize_middle(value, available);
+    println!("  {}", paint(label, "2", colors));
+    println!("    {}", paint(&value, value_color, colors));
+}
+
+fn print_path_setting(label: &str, path: &std::path::Path, colors: bool) {
+    let available = terminal_width().saturating_sub(18).max(20);
+    let path = ellipsize_middle(&compact_path(path), available);
+    println!(
+        "  {}  {}",
+        paint(&format!("{label:<12}"), "2", colors),
+        paint(&path, "36", colors)
+    );
 }
 
 fn parse_locales(values: Vec<String>) -> Result<Vec<Locale>> {
@@ -924,6 +1088,41 @@ mod tests {
             vec![Locale::zh_HK]
         );
         assert!(parse_locales(vec!["not-a-locale".into()]).is_err());
+    }
+
+    #[test]
+    fn browse_language_summaries_do_not_dump_locale_lists() {
+        let mut item = crunchydl::CatalogItem {
+            id: "G00000000".into(),
+            kind: crunchydl::CatalogKind::Season,
+            target: None,
+            title: "Season 1".into(),
+            description: String::new(),
+            extended_description: None,
+            images: Vec::new(),
+            rating: None,
+            release_year: None,
+            season_number: Some(1),
+            episode_number: None,
+            season_count: None,
+            episode_count: Some(28),
+            duration_millis: None,
+            premium_only: true,
+            is_subbed: true,
+            is_dubbed: true,
+            audio_locales: vec![Locale::en_US],
+            subtitle_locales: vec![Locale::en_US, Locale::es_ES, Locale::zh_CN],
+        };
+
+        assert_eq!(
+            catalog_language_summary(&item).as_deref(),
+            Some("English audio  ·  3 subtitle languages")
+        );
+        item.audio_locales.push(Locale::ja_JP);
+        assert_eq!(
+            catalog_language_summary(&item).as_deref(),
+            Some("2 audio languages  ·  3 subtitle languages")
+        );
     }
 
     #[test]
