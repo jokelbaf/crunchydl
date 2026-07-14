@@ -3,7 +3,7 @@
   <img alt="crunchydl - Download, decrypt, and mux your Crunchyroll library without external tools" src="https://gita.jokelbaf.dev/api/widget/public/crunchydl-readme-hero?w=880&amp;theme=light" width="880" />
 </picture>
 
-**Crunchydl** is an experimental, pure-Rust Crunchyroll downloader with a headless CLI and a polished terminal interface. It handles catalog discovery, resumable DASH transfers, PlayReady or Widevine licensing, CENC decryption, subtitles, chapters, fonts, and native muxing without invoking FFmpeg, MKVToolNix, Bento4, Shaka Packager, or any other executable.
+**Crunchydl** is an experimental, pure-Rust Crunchyroll downloader with a headless CLI and a polished terminal interface. It handles catalog discovery, resumable DASH transfers, PlayReady or Widevine licensing, CENC decryption, subtitles, chapters, fonts, and native muxing without invoking any external executables.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://gita.jokelbaf.dev/api/widget/public/crunchydl-feature-cards?w=880&amp;theme=dark&amp;items=Pure%20Rust%7CDASH%20transfer%2C%20CENC%20decryption%2C%20and%20native%20muxing%20without%20external%20tools%3BResume-safe%7CAtomic%20staging%2C%20retries%2C%20cancellation%2C%20and%20crash-resumable%20downloads%3BFull%20fidelity%7CMulti-audio%20MKV%2C%20ASS%20subtitles%2C%20chapters%2C%20fonts%2C%20plus%20strict%20MP4%3BTerminal%20first%7CHeadless%20commands%20and%20a%20polished%20Ratatui%20interface" />
