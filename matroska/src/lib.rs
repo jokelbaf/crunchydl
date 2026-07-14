@@ -7,10 +7,12 @@
 #![deny(missing_docs)]
 
 mod attachment;
-mod block;
+/// Block and block-group encoding primitives.
+pub mod block;
 mod chapter;
 mod cue;
-mod ebml;
+/// Low-level EBML variable-integer and element-id encoding primitives.
+pub mod ebml;
 mod element;
 mod error;
 mod muxer;

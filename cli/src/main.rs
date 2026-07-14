@@ -1,19 +1,17 @@
 //! Interactive and headless Crunchyroll downloader.
 
-mod auth;
-mod catalog;
-mod command;
-mod config;
+mod app;
+mod commands;
 mod error;
-mod paths;
-mod presentation;
-mod queue;
-mod thumbnail;
-mod tui;
+
+pub(crate) use app::{auth, catalog, config, paths, queue, thumbnail};
+pub(crate) use commands as command;
+pub(crate) use ui::{presentation, tui};
+mod ui;
 
 use clap::Parser;
 
-use crate::command::Arguments;
+use crate::commands::Arguments;
 use crate::error::Result;
 
 #[tokio::main]
@@ -27,5 +25,5 @@ async fn main() {
 async fn run() -> Result<()> {
     let arguments = Arguments::parse();
     let paths = paths::AppPaths::discover()?;
-    command::run(arguments, paths).await
+    commands::run(arguments, paths).await
 }

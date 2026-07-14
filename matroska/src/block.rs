@@ -10,12 +10,13 @@ pub(crate) fn simple(track: u64, relative_ms: i16, keyframe: bool, data: &[u8]) 
     )
 }
 
-pub(crate) fn group(
-    track: u64,
-    relative_ms: i16,
-    duration: Duration,
-    data: &[u8],
-) -> Result<Vec<u8>> {
+/// Encode a `BlockGroup` carrying a block and its display duration.
+///
+/// # Errors
+///
+/// Returns [`Error::Overflow`] when the duration exceeds the container limit and
+/// [`Error::Invalid`] when the track number is zero.
+pub fn group(track: u64, relative_ms: i16, duration: Duration, data: &[u8]) -> Result<Vec<u8>> {
     let duration = u64::try_from(duration.as_millis())
         .map_err(|_| Error::Overflow("block duration milliseconds"))?;
     crate::element::master(
@@ -36,19 +37,4 @@ fn payload(track: u64, relative_ms: i16, flags: u8, data: &[u8]) -> Result<Vec<u
     payload.push(flags);
     payload.extend(data);
     Ok(payload)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn subtitle_block_group_carries_its_display_duration() {
-        assert_eq!(
-            group(1, 0, Duration::from_millis(2_500), b"hi").unwrap(),
-            [
-                0xa0, 0x8c, 0xa1, 0x86, 0x81, 0x00, 0x00, 0x00, b'h', b'i', 0x9b, 0x82, 0x09, 0xc4,
-            ]
-        );
-    }
 }

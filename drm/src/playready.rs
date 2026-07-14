@@ -46,8 +46,7 @@ impl DrmProvider for PlayReadyProvider {
             let challenge = session
                 .get_license_challenge(wrm_header)
                 .map_err(|_| Error::Challenge)?;
-            // Crunchyroll rejects an otherwise valid SOAP challenge without
-            // the XML declaration that the backend deliberately omits.
+
             let challenge = if challenge.starts_with("<?xml") {
                 challenge.into_bytes()
             } else {

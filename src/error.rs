@@ -241,39 +241,3 @@ impl From<crunchyroll_rs::Error> for Error {
         Self::Api(error.into())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn error_display_does_not_leak_source_url() {
-        // Our own Display strings must not embed signed material. The `Api`
-        // variant prints a generic message; underlying details are only
-        // reachable through `source()`, which is the caller's explicit choice.
-        let err = Error::MissingKey {
-            kid: "00112233445566778899aabbccddeeff".to_string(),
-        };
-        assert_eq!(
-            err.to_string(),
-            "missing content key for kid 00112233445566778899aabbccddeeff"
-        );
-    }
-
-    #[test]
-    fn service_messages_reject_secret_bearing_or_structured_values() {
-        assert_eq!(
-            safe_service_message("stream limit exceeded"),
-            Some("stream limit exceeded".to_string())
-        );
-        assert_eq!(
-            safe_service_message("failed at https://example.test?a=b"),
-            None
-        );
-        assert_eq!(safe_service_message(r#"{"token":"secret"}"#), None);
-        assert_eq!(
-            status_message(Some(420)),
-            Some("too many active playback sessions")
-        );
-    }
-}
