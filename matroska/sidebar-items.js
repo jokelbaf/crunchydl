@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Error","TrackCodec","TrackSettings","TrackType"],"struct":["Attachment","AudioSettings","Chapter","Language","MuxOptions","Muxer","Packet","Track","VideoSettings"]};
+window.SIDEBAR_ITEMS = {"enum":["Error","TrackCodec","TrackSettings","TrackType"],"mod":["block","ebml"],"struct":["Attachment","AudioSettings","Chapter","Language","MuxOptions","Muxer","Packet","Track","VideoSettings"]};
