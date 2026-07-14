@@ -389,7 +389,7 @@ impl App {
             );
             None
         } else {
-            self.set_notice(NoticeKind::Info, "Waiting for input…");
+            self.set_notice(NoticeKind::Info, "Waiting for input...");
             Some(Instant::now() + SEARCH_DEBOUNCE)
         };
     }
@@ -400,7 +400,7 @@ impl App {
         let generation = self.generation;
         let sender = self.sender.clone();
         self.search_deadline = None;
-        self.set_notice(NoticeKind::Info, "Searching…");
+        self.set_notice(NoticeKind::Info, "Searching...");
         tokio::spawn(async move {
             let result = crate::catalog::search(&client, &query, 40).await;
             let _ = sender.send(Message::Search { generation, result });
@@ -452,7 +452,7 @@ impl App {
             | crunchydl::CatalogKind::MovieListing => {
                 let client = self.client.clone();
                 let sender = self.sender.clone();
-                self.set_notice(NoticeKind::Info, format!("Loading {}…", item.title));
+                self.set_notice(NoticeKind::Info, format!("Loading {}...", item.title));
                 tokio::spawn(async move {
                     let _ = sender.send(Message::Children(
                         crate::catalog::children(&client, &item).await,
@@ -479,7 +479,7 @@ impl App {
             };
             self.previous_screen = return_screen;
             self.screen = Screen::Selection;
-            self.set_notice(NoticeKind::Info, "Inspecting available tracks…");
+            self.set_notice(NoticeKind::Info, "Inspecting available tracks...");
             tokio::spawn(async move {
                 let downloader = crunchydl::Downloader::builder(client).build();
                 let result = async {
@@ -553,7 +553,7 @@ impl App {
                     include_specials: self.selection.include_specials,
                     season_numbers: Vec::new(),
                 };
-                self.set_notice(NoticeKind::Info, "Expanding collection…");
+                self.set_notice(NoticeKind::Info, "Expanding collection...");
                 tokio::spawn(async move {
                     let downloader = crunchydl::Downloader::builder(client).build();
                     let result = downloader
@@ -582,7 +582,7 @@ impl App {
         self.queue_running = true;
         self.queue_cancellation = Some(cancellation);
         self.progress = DownloadProgress::default();
-        self.set_notice(NoticeKind::Info, "Starting pending downloads…");
+        self.set_notice(NoticeKind::Info, "Starting pending downloads...");
         tokio::spawn(async move {
             let result = crate::command::run_queue_with_sink(&paths, sink, runner_cancellation)
                 .await
@@ -649,7 +649,7 @@ impl App {
             Confirmation::Logout => {
                 let paths = self.paths.clone();
                 let sender = self.sender.clone();
-                self.set_notice(NoticeKind::Info, "Signing out…");
+                self.set_notice(NoticeKind::Info, "Signing out...");
                 tokio::spawn(async move {
                     let _ = sender.send(Message::LoggedOut(crate::auth::logout(&paths).await));
                 });
@@ -1009,7 +1009,7 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
         if let Some(cancellation) = &app.queue_cancellation {
             cancellation.cancel();
-            app.set_notice(NoticeKind::Warning, "Cancelling the active download…");
+            app.set_notice(NoticeKind::Warning, "Cancelling the active download...");
         } else {
             app.should_quit = true;
         }
@@ -1150,7 +1150,7 @@ fn handle_queue_key(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Char('x') if app.queue_running => {
             if let Some(cancellation) = &app.queue_cancellation {
                 cancellation.cancel();
-                app.set_notice(NoticeKind::Warning, "Cancelling active download…");
+                app.set_notice(NoticeKind::Warning, "Cancelling active download...");
             }
         }
         KeyCode::Char('r') if !app.queue_running => app.retry_selected()?,
@@ -1438,7 +1438,7 @@ fn draw_catalog(frame: &mut ratatui::Frame<'_>, app: &mut App, area: Rect) {
             Span::styled(prompt, Style::default().fg(Color::White)),
             if app.query.is_empty() && app.screen == Screen::Search {
                 Span::styled(
-                    "Search anime, movies, and music…",
+                    "Search anime, movies, and music...",
                     Style::default().fg(MUTED),
                 )
             } else {
@@ -1486,7 +1486,7 @@ fn draw_catalog_details(frame: &mut ratatui::Frame<'_>, app: &mut App, area: Rec
     } else {
         frame.render_widget(
             Paragraph::new(if app.thumbnail_loading.is_some() {
-                "Loading artwork…"
+                "Loading artwork..."
             } else {
                 "No artwork available"
             })
@@ -1590,7 +1590,7 @@ fn draw_selection(frame: &mut ratatui::Frame<'_>, app: &App, area: Rect) {
                 ),
                 Line::raw(""),
                 Line::styled(
-                    "Checking audio versions, subtitles, video quality, and DRM metadata…",
+                    "Checking audio versions, subtitles, video quality, and DRM metadata...",
                     Style::default().fg(Color::Gray),
                 ),
                 Line::raw(""),
@@ -1971,7 +1971,7 @@ fn draw_settings(frame: &mut ratatui::Frame<'_>, app: &App, area: Rect) {
                 Line::raw(""),
                 Line::styled(
                     if displayed.is_empty() {
-                        "Type a new value…".to_string()
+                        "Type a new value...".to_string()
                     } else {
                         displayed
                     },

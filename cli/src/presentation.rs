@@ -157,7 +157,7 @@ pub(crate) fn ellipsize(value: &str, max_chars: usize) -> String {
         return value.to_string();
     }
     let keep = max_chars.saturating_sub(1);
-    format!("{}…", value.chars().take(keep).collect::<String>())
+    format!("{}...", value.chars().take(keep).collect::<String>())
 }
 
 pub(crate) fn ellipsize_middle(value: &str, max_chars: usize) -> String {
@@ -166,7 +166,7 @@ pub(crate) fn ellipsize_middle(value: &str, max_chars: usize) -> String {
         return value.to_string();
     }
     if max_chars <= 1 {
-        return "…".chars().take(max_chars).collect();
+        return "...".chars().take(max_chars).collect();
     }
     let remaining = max_chars - 1;
     let start = remaining.div_ceil(2);
@@ -180,7 +180,7 @@ pub(crate) fn ellipsize_middle(value: &str, max_chars: usize) -> String {
         .chars()
         .rev()
         .collect::<String>();
-    format!("{prefix}…{suffix}")
+    format!("{prefix}...{suffix}")
 }
 
 /// Hide signed request URLs retained by queue documents written by older
@@ -412,8 +412,8 @@ mod tests {
     fn presentation_helpers_are_human_readable() {
         assert_eq!(yes_no(true), "yes");
         assert_eq!(human_bytes(1_572_864), "1.5 MiB");
-        assert_eq!(ellipsize("abcdefgh", 5), "abcd…");
-        assert_eq!(ellipsize_middle("abcdefgh", 6), "abc…gh");
+        assert_eq!(ellipsize("abcdefgh", 5), "abcd...");
+        assert_eq!(ellipsize_middle("abcdefgh", 6), "abc...gh");
         assert_eq!(locale_name_from_code("es-419"), "Español (América Latina)");
         assert_eq!(locale_label_from_code("ja-JP"), "Japanese [ja-JP]");
         assert_eq!(locale_label_from_code("x-custom"), "x-custom");
