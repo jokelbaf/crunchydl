@@ -44,7 +44,7 @@ Omit `--all-features` for a PlayReady-only build.
 To install the latest source directly from GitHub:
 
 ```bash
-cargo install --git https://github.com/jokelbaf/crunchydl --package cli --locked --all-features
+cargo install --git https://github.com/jokelbaf/crunchydl cli --locked --all-features
 ```
 
 <picture>
