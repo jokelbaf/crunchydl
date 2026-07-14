@@ -1,0 +1,9 @@
+{
+  "id": "MV1",
+  "title": "My Music Video",
+  "description": "A song.",
+  "sequenceNumber": 3.0,
+  "durationMs": 210000,
+  "isPremiumOnly": false,
+  "isPublic": true
+}

@@ -1,0 +1,142 @@
+name: Create release
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - Cargo.toml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      created: ${{ steps.release.outputs.created }}
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Resolve release version
+        id: release
+        shell: bash
+        run: |
+          version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "crunchydl") | .version')"
+          tag="v${version}"
+          manifest="${RUNNER_TEMP}/crunchydl-release.toml"
+
+          printf 'version = "%s"\n' "$version" > "$manifest"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "manifest=$manifest" >> "$GITHUB_OUTPUT"
+
+          if git rev-parse --quiet --verify "refs/tags/$tag" >/dev/null; then
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub release
+        if: steps.release.outputs.created == 'true'
+        uses: jokelbaf/rust-release@master
+        with:
+          manifest_path: ${{ steps.release.outputs.manifest }}
+
+  executables:
+    name: ${{ matrix.asset }}
+    needs: release
+    if: needs.release.outputs.created == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            asset: linux-x86_64
+          - runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            asset: linux-aarch64
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset: windows-x86_64
+          - runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            asset: windows-aarch64
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+            asset: macos-x86_64
+          - runner: macos-latest
+            target: aarch64-apple-darwin
+            asset: macos-aarch64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      - name: Build executable
+        run: cargo build --locked -p cli --release --all-features --target ${{ matrix.target }}
+
+      - name: Package executable
+        if: runner.os != 'Windows'
+        id: package-unix
+        shell: bash
+        env:
+          ASSET: ${{ matrix.asset }}
+          TAG: ${{ needs.release.outputs.tag }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          archive="crunchydl-${TAG}-${ASSET}.tar.gz"
+          bundle="dist/crunchydl-${TAG}-${ASSET}"
+          mkdir -p "$bundle"
+          cp "target/${TARGET}/release/crunchydl" README.md LICENSE "$bundle/"
+          tar -C dist -czf "$archive" "crunchydl-${TAG}-${ASSET}"
+          shasum -a 256 "$archive" > "${archive}.sha256"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Package executable
+        if: runner.os == 'Windows'
+        id: package-windows
+        shell: pwsh
+        env:
+          ASSET: ${{ matrix.asset }}
+          TAG: ${{ needs.release.outputs.tag }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          $archive = "crunchydl-$env:TAG-$env:ASSET.zip"
+          $bundle = "dist/crunchydl-$env:TAG-$env:ASSET"
+          New-Item -ItemType Directory -Force -Path $bundle | Out-Null
+          Copy-Item "target/$env:TARGET/release/crunchydl.exe", "README.md", "LICENSE" -Destination $bundle
+          Compress-Archive -Path "$bundle/*" -DestinationPath $archive
+          $hash = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
+          "$hash  $archive" | Set-Content -NoNewline "${archive}.sha256"
+          "archive=$archive" >> $env:GITHUB_OUTPUT
+
+      - name: Upload release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release.outputs.tag }}
+          ARCHIVE_UNIX: ${{ steps.package-unix.outputs.archive }}
+          ARCHIVE_WINDOWS: ${{ steps.package-windows.outputs.archive }}
+        run: |
+          archive="${ARCHIVE_UNIX:-$ARCHIVE_WINDOWS}"
+          gh release upload "$TAG" "$archive" "${archive}.sha256" --clobber

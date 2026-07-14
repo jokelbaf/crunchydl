@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title description">
+  <title id="title">crunchydl logo</title>
+  <desc id="description">An orange streaming crescent surrounding a download arrow.</desc>
+  <g fill="#F47521">
+    <path d="M64 8C33.1 8 8 33.1 8 64s25.1 56 56 56c18.1 0 34.2-8.6 44.4-21.9L90.9 84.4A34 34 0 1 1 91 43.7l17.5-13.9A55.9 55.9 0 0 0 64 8Z"/>
+    <path d="M69 36a6 6 0 0 1 6 6v23h10.5c5.3 0 8 6.4 4.2 10.2L68.2 96.7a6 6 0 0 1-8.4 0L38.3 75.2C34.5 71.4 37.2 65 42.5 65H53V42a6 6 0 0 1 6-6h10Z"/>
+  </g>
+</svg>

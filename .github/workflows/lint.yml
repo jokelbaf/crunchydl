@@ -1,0 +1,40 @@
+name: Lint code
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run Clippy with default features
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run Clippy with all features
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Build documentation
+        run: cargo doc --workspace --all-features --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+      - name: Report duplicate dependencies
+        run: cargo tree -d

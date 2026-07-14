@@ -1,0 +1,11 @@
+{
+  "id": "MOVIE1",
+  "title": "My Movie",
+  "movie_listing_id": "ML1",
+  "movie_listing_title": "My Movie Listing",
+  "duration_ms": 5400000,
+  "is_premium_only": true,
+  "is_subbed": true,
+  "is_dubbed": false,
+  "availability_status": "available"
+}

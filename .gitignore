@@ -1,0 +1,24 @@
+/target/
+/references/
+
+# Local credentials and caller-owned DRM material.
+.env
+.env.*
+!.env.example
+*.prd
+*.wvd
+
+# Download and staging output must never enter source control.
+*.mkv
+*.mp4
+*.part
+*.tmp
+
+# Synthetic conformance inputs are source fixtures, not download output.
+!/tests/fixtures/drm/vsd/**/*.mp4
+
+# Platform and editor debris.
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

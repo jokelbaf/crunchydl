@@ -1,0 +1,27 @@
+[package]
+name = "drm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[dependencies]
+base64 = "0.22.1"
+playready = { version = "0.3.0", optional = true }
+serde_json = "1.0.150"
+thiserror = "2.0.18"
+vsd-mp4 = { version = "0.2.1", default-features = false, features = ["decrypt-cenc"] }
+widevine = { version = "0.1.0", optional = true }
+zeroize = { version = "1.9.0", features = ["derive"] }
+
+[lints]
+workspace = true
+
+[features]
+playready = ["dep:playready"]
+widevine = ["dep:widevine"]
+
+[dev-dependencies]
+tokio = { version = "1.52.3", features = ["macros", "rt"] }

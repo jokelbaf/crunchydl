@@ -1,0 +1,18 @@
+[package]
+name = "matroska"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[dependencies]
+media = { version = "0.1.0", path = "../media" }
+thiserror = "2.0.18"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+matroska-reader = { package = "matroska", version = "0.30.1" }

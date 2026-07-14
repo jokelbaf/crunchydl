@@ -1,0 +1,74 @@
+[package]
+name = "crunchydl"
+version.workspace = true
+edition.workspace = true
+description = "Pure-Rust Crunchyroll download, decryption, and native muxing library"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+readme = "README.md"
+keywords = ["crunchyroll", "download", "dash", "matroska", "drm"]
+categories = ["multimedia", "network-programming"]
+
+[dependencies]
+base64 = "0.22.1"
+drm = { version = "0.1.0", path = "drm" }
+matroska-writer = { package = "matroska", version = "0.1.0", path = "matroska" }
+media = { version = "0.1.0", path = "media" }
+crunchyroll-rs = { version = "0.18.0", default-features = false, features = ["parse"] }
+matroska-reader = { package = "matroska", version = "0.30.1" }
+reqwest = { version = "0.13.4", default-features = false, features = ["rustls"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+sha2 = "0.10"
+thiserror = "2.0.18"
+tokio = { version = "1.52.3", features = ["fs", "io-util", "rt", "sync", "time"] }
+mp4 = "0.14.0"
+bytes = "1.12.1"
+
+[lints]
+workspace = true
+
+[workspace]
+resolver = "3"
+members = [
+    "cli",
+    "drm",
+    "matroska",
+    "media",
+]
+default-members = [
+    ".",
+    "cli",
+    "drm",
+    "matroska",
+    "media",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+repository = "https://github.com/jokelbaf/crunchydl"
+homepage = "https://github.com/jokelbaf/crunchydl"
+documentation = "https://crunchydl.pkg.rs"
+
+# Applied to every workspace member through `[lints] workspace = true`.
+# `deny(warnings)` is intentionally left to CI (`-D warnings`) so local debug
+# builds are not blocked by in-progress warnings.
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[dev-dependencies]
+futures-util = "0.3.32"
+serde_json = "1.0.150"
+tokio = { version = "1.52.3", features = ["rt", "macros"] }
+
+[features]
+drm-playready = ["drm/playready"]
+drm-widevine = ["drm/widevine"]

@@ -1,0 +1,8 @@
+WEBVTT
+
+STYLE
+::cue(.sign) { font-family: 'Trebuchet MS'; color: #12A0FF; font-weight: bold; }
+
+00:00:01.005 --> 00:00:02.995 line:10% position:25%
+<c.sign><i>Hello</i>
+world</c>

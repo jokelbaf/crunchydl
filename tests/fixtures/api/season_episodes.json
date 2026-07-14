@@ -1,0 +1,66 @@
+[
+  {
+    "id": "EP1",
+    "title": "Episode One",
+    "episode": "1",
+    "episode_number": 1,
+    "sequence_number": 1.0,
+    "audio_locale": "ja-JP",
+    "subtitle_locales": ["en-US", "de-DE"],
+    "duration_ms": 1440000,
+    "is_premium_only": false,
+    "availability_status": "available",
+    "series_id": "SERIES1",
+    "series_title": "My Series",
+    "season_id": "SEASON1",
+    "season_title": "Season 1",
+    "versions": [
+      {
+        "guid": "EP1",
+        "audio_locale": "ja-JP",
+        "original": true,
+        "is_premium_only": false,
+        "roles": []
+      },
+      {
+        "guid": "EP1-EN",
+        "audio_locale": "en-US",
+        "original": false,
+        "is_premium_only": true,
+        "roles": ["dub"]
+      }
+    ]
+  },
+  {
+    "id": "EP2",
+    "title": "Episode Two",
+    "episode": "2",
+    "episode_number": 2,
+    "sequence_number": 2.0,
+    "audio_locale": "ja-JP",
+    "subtitle_locales": ["en-US"],
+    "duration_ms": 1440000,
+    "is_premium_only": false,
+    "availability_status": "available",
+    "series_id": "SERIES1",
+    "series_title": "My Series",
+    "season_id": "SEASON1",
+    "season_title": "Season 1",
+    "versions": []
+  },
+  {
+    "id": "EPSP",
+    "title": "Special",
+    "episode": "SP",
+    "sequence_number": 2.5,
+    "audio_locale": "ja-JP",
+    "subtitle_locales": ["en-US"],
+    "duration_ms": 720000,
+    "is_premium_only": false,
+    "availability_status": "available",
+    "series_id": "SERIES1",
+    "series_title": "My Series",
+    "season_id": "SEASON1",
+    "season_title": "Season 1"
+  }
+]
