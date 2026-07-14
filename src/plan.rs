@@ -2,7 +2,9 @@ use std::fmt;
 use std::time::Duration;
 
 use crunchyroll_rs::Locale;
-use crunchyroll_rs::media::{AudioMediaStream, MediaStreamDRM, StreamData, VideoMediaStream};
+use crunchyroll_rs::media::{
+    AudioMediaStream, MediaStreamDRM, StreamData, StreamDrm, VideoMediaStream,
+};
 
 use crate::api::{ApiSubtitle, CrunchyrollApi};
 use crate::chapters::{Chapter, from_skip_events};
@@ -129,6 +131,7 @@ pub(crate) struct PlannedSource {
     pub(crate) media: Vec<SourceSegment>,
     #[allow(dead_code)]
     pub(crate) drm: Option<MediaStreamDRM>,
+    pub(crate) playback_drm: StreamDrm,
 }
 
 impl fmt::Debug for PlannedSource {
@@ -194,8 +197,14 @@ pub(crate) async fn prepare_with_guard<A: CrunchyrollApi>(
         selected_audio_locales.push(metadata.audio_locale.clone());
         all_subtitles.extend(metadata.subtitles);
 
-        let video =
-            choose_video(&version.content_id, &metadata.audio_locale, &data, options).await?;
+        let video = choose_video(
+            &version.content_id,
+            &metadata.audio_locale,
+            &metadata.drm,
+            &data,
+            options,
+        )
+        .await?;
         if let Some(warning) = video.1 {
             warnings.push(warning);
         }
@@ -209,8 +218,14 @@ pub(crate) async fn prepare_with_guard<A: CrunchyrollApi>(
             sources.push(video.0);
         }
 
-        let audio =
-            choose_audio(&version.content_id, &metadata.audio_locale, &data, options).await?;
+        let audio = choose_audio(
+            &version.content_id,
+            &metadata.audio_locale,
+            &metadata.drm,
+            &data,
+            options,
+        )
+        .await?;
         if let Some(warning) = audio.1 {
             warnings.push(warning);
         }
@@ -252,6 +267,7 @@ pub(crate) async fn prepare_with_guard<A: CrunchyrollApi>(
 async fn choose_video(
     version_id: &str,
     locale: &Locale,
+    playback_drm: &StreamDrm,
     data: &StreamData,
     options: &PlanningOptions,
 ) -> Result<(PlannedSource, Option<DownloadWarning>), Error> {
@@ -266,7 +282,7 @@ async fn choose_video(
         .collect::<Vec<_>>();
     let choice = select_video_quality(&candidates, &options.video_quality, options.fallback)?;
     Ok((
-        video_source(version_id, locale, &data.video[choice.index]).await?,
+        video_source(version_id, locale, playback_drm, &data.video[choice.index]).await?,
         choice.warning,
     ))
 }
@@ -274,6 +290,7 @@ async fn choose_video(
 async fn choose_audio(
     version_id: &str,
     locale: &Locale,
+    playback_drm: &StreamDrm,
     data: &StreamData,
     options: &PlanningOptions,
 ) -> Result<(PlannedSource, Option<DownloadWarning>), Error> {
@@ -287,7 +304,7 @@ async fn choose_audio(
         .collect::<Vec<_>>();
     let choice = select_audio_quality(&candidates, &options.audio_quality, options.fallback)?;
     Ok((
-        audio_source(version_id, locale, &data.audio[choice.index]).await?,
+        audio_source(version_id, locale, playback_drm, &data.audio[choice.index]).await?,
         choice.warning,
     ))
 }
@@ -295,6 +312,7 @@ async fn choose_audio(
 async fn video_source(
     version_id: &str,
     locale: &Locale,
+    playback_drm: &StreamDrm,
     stream: &VideoMediaStream,
 ) -> Result<PlannedSource, Error> {
     let dimensions = Some((
@@ -310,6 +328,7 @@ async fn video_source(
         dimensions,
         None,
         stream.drm.clone(),
+        playback_drm.clone(),
         stream.segments().await?,
     )
 }
@@ -317,6 +336,7 @@ async fn video_source(
 async fn audio_source(
     version_id: &str,
     locale: &Locale,
+    playback_drm: &StreamDrm,
     stream: &AudioMediaStream,
 ) -> Result<PlannedSource, Error> {
     source_from_segments(
@@ -328,6 +348,7 @@ async fn audio_source(
         None,
         Some(stream.sampling_rate),
         stream.drm.clone(),
+        playback_drm.clone(),
         stream.segments().await?,
     )
 }
@@ -342,6 +363,7 @@ fn source_from_segments(
     dimensions: Option<(u32, u32)>,
     sampling_rate: Option<u32>,
     drm: Option<MediaStreamDRM>,
+    playback_drm: StreamDrm,
     segments: Vec<crunchyroll_rs::media::StreamSegment>,
 ) -> Result<PlannedSource, Error> {
     let mut segments = segments.into_iter().map(|segment| SourceSegment {
@@ -387,6 +409,7 @@ fn source_from_segments(
         init,
         media,
         drm,
+        playback_drm,
     })
 }
 

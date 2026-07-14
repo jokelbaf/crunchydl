@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use base64::Engine as _;
 use crunchyroll_rs::Locale;
-use crunchyroll_rs::media::{MediaStreamDRMType, StreamPlatform};
+use crunchyroll_rs::media::{MediaStreamDRMType, StreamDrm, StreamPlatform};
 use drm::{ContentKey, ContentType, DrmProvider, DrmRequest, inspect_encryption};
 use matroska_writer as mkv;
 use media::{Codec, FragmentedMp4, TrackKind};
@@ -41,19 +41,14 @@ pub enum DrmSystem {
 }
 
 impl DrmSystem {
-    /// Return the production Crunchyroll license endpoint for this DRM system.
-    ///
-    /// Callers normally do not need to configure an endpoint. An explicit
-    /// override remains available through
-    /// [`DownloaderBuilder::drm_with_license_endpoint`](crate::DownloaderBuilder::drm_with_license_endpoint)
-    /// for testing, proxies, or future service changes.
-    #[must_use]
-    pub const fn default_license_endpoint(self) -> &'static str {
+    fn matches_name(self, name: &str) -> bool {
+        name.eq_ignore_ascii_case(self.endpoint_name())
+    }
+
+    const fn endpoint_name(self) -> &'static str {
         match self {
-            Self::PlayReady => {
-                "https://cr-license-proxy.prd.crunchyrollsvc.com/v1/license/playReady"
-            }
-            Self::Widevine => "https://cr-license-proxy.prd.crunchyrollsvc.com/v1/license/widevine",
+            Self::PlayReady => "playReady",
+            Self::Widevine => "widevine",
         }
     }
 }
@@ -180,7 +175,7 @@ pub struct DownloadResult {
 pub(crate) struct DrmConfiguration {
     pub(crate) provider: Arc<dyn DrmProvider>,
     pub(crate) system: DrmSystem,
-    pub(crate) endpoint: String,
+    pub(crate) endpoint_override: Option<String>,
 }
 
 pub(crate) struct RuntimeConfiguration {
@@ -448,8 +443,13 @@ async fn execute_pipeline_inner(
                 .ok_or_else(|| Error::License(drm::Error::License))?;
             let info = inspect_encryption(&init)?;
             let pssh = select_pssh(drm, config.system)?;
+            let endpoint = license_endpoint(
+                config.system,
+                config.endpoint_override.as_deref(),
+                &source.playback_drm,
+            )?;
             let request_data = DrmRequest {
-                endpoint: config.endpoint.clone(),
+                endpoint,
                 content_id: source.diagnostic.version_id.clone(),
                 playback_token: drm.token.clone(),
                 content_type: match source.diagnostic.kind {
@@ -828,6 +828,29 @@ fn select_pssh(
     base64::engine::general_purpose::STANDARD
         .decode(encoded)
         .map_err(|_| Error::License(drm::Error::License))
+}
+
+fn license_endpoint(
+    system: DrmSystem,
+    endpoint_override: Option<&str>,
+    playback_drm: &StreamDrm,
+) -> Result<String, Error> {
+    let endpoint = endpoint_override.unwrap_or(&playback_drm.drm_url).trim();
+    if endpoint.is_empty() {
+        return Err(Error::License(drm::Error::License));
+    }
+    if endpoint_override.is_some() || system.matches_name(playback_drm.name.trim()) {
+        return Ok(endpoint.to_string());
+    }
+    let (base, advertised_name) = endpoint
+        .rsplit_once('/')
+        .ok_or_else(|| Error::License(drm::Error::License))?;
+    if playback_drm.name.trim().is_empty()
+        || !advertised_name.eq_ignore_ascii_case(playback_drm.name.trim())
+    {
+        return Err(Error::License(drm::Error::License));
+    }
+    Ok(format!("{base}/{}", system.endpoint_name()))
 }
 
 fn assemble_track(
@@ -1410,16 +1433,49 @@ mod tests {
     static NEXT_TEST_DIRECTORY: AtomicUsize = AtomicUsize::new(1);
 
     #[test]
-    fn drm_systems_select_their_production_license_endpoints() {
-        assert!(
-            DrmSystem::PlayReady
-                .default_license_endpoint()
-                .ends_with("/playReady")
+    fn license_endpoint_comes_from_playback_metadata() {
+        let playback_drm = StreamDrm {
+            name: "widevine".to_string(),
+            drm_url: "https://license.test/from-playback".to_string(),
+        };
+        assert_eq!(
+            license_endpoint(DrmSystem::Widevine, None, &playback_drm).unwrap(),
+            "https://license.test/from-playback"
         );
-        assert!(
-            DrmSystem::Widevine
-                .default_license_endpoint()
-                .ends_with("/widevine")
+    }
+
+    #[test]
+    fn license_endpoint_uses_selected_backend_with_service_url_base() {
+        let playback_drm = StreamDrm {
+            name: "widevine".to_string(),
+            drm_url: "https://license.test/from-playback".to_string(),
+        };
+        assert!(license_endpoint(DrmSystem::PlayReady, None, &playback_drm).is_err());
+
+        let playback_drm = StreamDrm {
+            name: "widevine".to_string(),
+            drm_url: "https://license.test/v1/license/widevine".to_string(),
+        };
+        assert_eq!(
+            license_endpoint(DrmSystem::PlayReady, None, &playback_drm).unwrap(),
+            "https://license.test/v1/license/playReady"
+        );
+    }
+
+    #[test]
+    fn explicit_license_endpoint_overrides_playback_url() {
+        let playback_drm = StreamDrm {
+            name: "widevine".to_string(),
+            drm_url: "https://license.test/from-playback".to_string(),
+        };
+        assert_eq!(
+            license_endpoint(
+                DrmSystem::PlayReady,
+                Some("https://proxy.test/license"),
+                &playback_drm,
+            )
+            .unwrap(),
+            "https://proxy.test/license"
         );
     }
 

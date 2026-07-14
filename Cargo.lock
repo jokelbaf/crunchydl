@@ -946,8 +946,7 @@ dependencies = [
 [[package]]
 name = "crunchyroll-rs"
 version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "287103cfaad4cb4c96686599f8af297b0f485dc0709f7da0b6b5b89364dcc444"
+source = "git+https://github.com/crunchy-labs/crunchyroll-rs.git?rev=a7d27186bc038b9798b4f51249ed9f6f03d27079#a7d27186bc038b9798b4f51249ed9f6f03d27079"
 dependencies = [
  "byteorder",
  "chrono",
@@ -971,8 +970,7 @@ dependencies = [
 [[package]]
 name = "crunchyroll-rs-internal"
 version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf0f35e0f876a24affde857049ac5f941d484da464bc175def73216efd1a4f5d"
+source = "git+https://github.com/crunchy-labs/crunchyroll-rs.git?rev=a7d27186bc038b9798b4f51249ed9f6f03d27079#a7d27186bc038b9798b4f51249ed9f6f03d27079"
 dependencies = [
  "darling",
  "proc-macro2",

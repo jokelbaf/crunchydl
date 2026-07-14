@@ -303,22 +303,25 @@ impl DownloaderBuilder {
 
     /// Configure the DRM provider and explicitly selected system.
     ///
-    /// The production Crunchyroll license endpoint is selected automatically.
+    /// The license URL base and advertised backend name are taken from each
+    /// playback session returned by Crunchyroll. When `system` differs from
+    /// the advertised backend, only the terminal backend-name component is
+    /// changed to select the caller-configured DRM system.
     #[must_use]
     pub fn drm(mut self, provider: Arc<dyn DrmProvider>, system: DrmSystem) -> Self {
-        let endpoint = system.default_license_endpoint().to_string();
         self.runtime.drm = Some(download::DrmConfiguration {
             provider,
             system,
-            endpoint,
+            endpoint_override: None,
         });
         self
     }
 
     /// Configure DRM with an explicit license endpoint override.
     ///
-    /// Prefer [`DownloaderBuilder::drm`] for normal Crunchyroll downloads.
-    /// This override exists for testing, proxies, and service endpoint changes.
+    /// Prefer [`DownloaderBuilder::drm`] for normal Crunchyroll downloads so
+    /// the endpoint is read from playback metadata. This override exists for
+    /// testing and proxies.
     #[must_use]
     pub fn drm_with_license_endpoint(
         mut self,
@@ -329,7 +332,7 @@ impl DownloaderBuilder {
         self.runtime.drm = Some(download::DrmConfiguration {
             provider,
             system,
-            endpoint: license_endpoint.into(),
+            endpoint_override: Some(license_endpoint.into()),
         });
         self
     }

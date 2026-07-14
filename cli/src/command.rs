@@ -205,10 +205,10 @@ struct ConfigSetArguments {
     /// User-supplied `.prd` or `.wvd` DRM device file.
     #[arg(long)]
     drm_device: Option<PathBuf>,
-    /// Override the built-in Crunchyroll license endpoint.
+    /// Override the license endpoint returned by Crunchyroll playback metadata.
     #[arg(long)]
     license_endpoint: Option<String>,
-    /// Remove a saved license endpoint override and use the built-in endpoint.
+    /// Remove a saved license endpoint override and use playback metadata.
     #[arg(long, conflicts_with = "license_endpoint")]
     clear_license_endpoint: bool,
 }

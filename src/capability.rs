@@ -300,6 +300,7 @@ mod tests {
                     format: "ass".into(),
                     is_caption: false,
                 }],
+                drm: crunchyroll_rs::media::StreamDrm::default(),
             }
         }
         async fn stream_data(

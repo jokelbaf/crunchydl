@@ -8,7 +8,7 @@
 //! Playback, subtitle, skip-event, license-token, and invalidation operations
 //! are added when playback lands in a later phase.
 
-use crunchyroll_rs::media::{SkipEvents, Stream, StreamData, StreamPlatform};
+use crunchyroll_rs::media::{SkipEvents, Stream, StreamData, StreamDrm, StreamPlatform};
 use crunchyroll_rs::{Crunchyroll, Episode, Movie, MovieListing, MusicVideo, Season, Series};
 
 use crate::error::Error;
@@ -26,6 +26,7 @@ pub(crate) struct SessionMetadata {
     pub(crate) audio_locale: crunchyroll_rs::Locale,
     pub(crate) hardsubs: Vec<crunchyroll_rs::Locale>,
     pub(crate) subtitles: Vec<ApiSubtitle>,
+    pub(crate) drm: StreamDrm,
 }
 
 /// Internal seam over the `crunchyroll-rs` operations the downloader needs.
@@ -169,6 +170,7 @@ impl CrunchyrollApi for ProductionApi {
             audio_locale: session.audio_locale.clone(),
             hardsubs,
             subtitles,
+            drm: session.drm.clone(),
         }
     }
 

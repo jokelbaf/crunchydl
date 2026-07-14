@@ -7,8 +7,8 @@ use reqwest::header::{AUTHORIZATION, CACHE_CONTROL, CONTENT_TYPE, PRAGMA};
 /// License transport using the authenticated client and current access token
 /// from `crunchyroll-rs`.
 ///
-/// The endpoint remains caller-configured because `crunchyroll-rs` does not
-/// expose the private license URL stored in a playback response.
+/// The endpoint is supplied from `crunchyroll-rs` playback metadata, or from
+/// an explicit caller override used for tests and proxies.
 pub struct CrunchyrollLicenseTransport {
     crunchyroll: Crunchyroll,
 }

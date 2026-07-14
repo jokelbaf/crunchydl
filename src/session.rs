@@ -120,6 +120,7 @@ mod tests {
                 audio_locale: Locale::en_US,
                 hardsubs: Vec::new(),
                 subtitles: Vec::<ApiSubtitle>::new(),
+                drm: crunchyroll_rs::media::StreamDrm::default(),
             }
         }
         async fn stream_data(
