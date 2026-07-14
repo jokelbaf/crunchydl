@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use reqwest::StatusCode;
 
-use super::support::*;
 use super::*;
 
 impl TransferEngine {
