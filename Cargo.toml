@@ -13,9 +13,9 @@ categories = ["multimedia", "network-programming"]
 
 [dependencies]
 base64 = "0.22.1"
-drm = { version = "0.1.0", path = "drm" }
-matroska-writer = { package = "matroska", version = "0.1.0", path = "matroska" }
-media = { version = "0.1.0", path = "media" }
+drm = { version = "0.2.0", path = "drm" }
+matroska-writer = { package = "matroska", version = "0.2.0", path = "matroska" }
+media = { version = "0.2.0", path = "media" }
 crunchyroll-rs = { version = "0.18.0", default-features = false, features = ["parse"], git = "https://github.com/crunchy-labs/crunchyroll-rs.git", rev = "a7d27186bc038b9798b4f51249ed9f6f03d27079" }
 matroska-reader = { package = "matroska", version = "0.30.1" }
 reqwest = { version = "0.13.4", default-features = false, features = ["rustls"] }
@@ -47,7 +47,7 @@ default-members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "GPL-3.0-only"
 repository = "https://github.com/jokelbaf/crunchydl"

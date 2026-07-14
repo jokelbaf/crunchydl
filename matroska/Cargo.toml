@@ -8,7 +8,7 @@ homepage.workspace = true
 publish = false
 
 [dependencies]
-media = { version = "0.1.0", path = "../media" }
+media = { version = "0.2.0", path = "../media" }
 thiserror = "2.0.18"
 
 [lints]
